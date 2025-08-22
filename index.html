@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build Your Own Computer History</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f3e8ff; overflow:hidden; }
+
+#intro { 
+  display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; width:100%; 
+  background: linear-gradient(135deg, #a079c8, #6e40aa); color:#fff; text-align:center; padding:40px; position:relative; overflow:hidden; border-radius:30px;
+  animation:fadeIn 1.5s ease;
+}
+#intro h1 { font-size:3em; margin-bottom:20px; text-shadow:2px 2px 8px rgba(0,0,0,0.4); animation:slideDown 1s ease;}
+#intro p { font-size:1.2em; margin-bottom:30px; animation:slideUp 1s ease;}
+#intro button { background:#fff; color:#6e40aa; border:none; padding:20px 40px; border-radius:30px; font-size:20px; cursor:pointer; margin:10px; transition:0.3s; animation:fadeIn 1.5s ease;}
+#intro button:hover { transform:scale(1.1); background:#e0ccff; }
+
+.bg-icons { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.float { position:absolute; opacity:.35; animation:float 6s ease-in-out infinite; font-size:2em;}
+.f1 { top:10%; left:5%; }
+.f2 { top:70%; left:15%; animation-delay:3s; }
+.f3 { top:30%; left:25%; animation-delay:1.5s; }
+.f4 { top:50%; left:35%; animation-delay:4s; }
+
+@keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-20px); } }
+@keyframes fadeIn { 0% {opacity:0;} 100% {opacity:1;} }
+@keyframes slideDown { 0% {transform:translateY(-50px); opacity:0;} 100% {transform:translateY(0); opacity:1;} }
+@keyframes slideUp { 0% {transform:translateY(50px); opacity:0;} 100% {transform:translateY(0); opacity:1;} }
+
+section.slide { display:none; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; width:100%; padding:40px; text-align:center; background: rgba(110,64,170,0.85); color:#fff; border-radius:25px; transition: opacity 0.5s; animation:fadeIn 1.2s ease;}
+section.slide.active { display:flex; opacity:1; }
+
+h2 { margin-bottom:20px; text-shadow:1px 1px 5px rgba(0,0,0,0.4); }
+ol, p { margin-bottom:20px; }
+
+.cards-container { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; width:100%; overflow:hidden; animation:fadeIn 1.5s ease;}
+.cards-row { display:flex; justify-content:center; gap:20px; flex-wrap:nowrap; }
+
+.card { width:220px; height:300px; background:rgba(255,255,255,0.2); border-radius:12px; cursor:pointer; perspective:1000px; flex-shrink:0; transition: transform 0.3s; }
+.card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition: transform 0.6s; }
+.card.flipped .card-inner { transform:rotateY(180deg); }
+.card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:10px; }
+.card-front img { width:160px; height:160px; object-fit:cover; border-radius:12px; margin-bottom:15px; box-shadow:0 0 15px rgba(0,0,0,0.4); animation:fadeIn 1.2s ease;}
+.card-front { background:rgba(255,255,255,0.2); font-weight:bold; }
+.card-back { background:#fff; color:#6e40aa; transform:rotateY(180deg); font-weight:normal; font-size:0.9em; text-align:center; padding:15px; border:2px solid #6e40aa; }
+
+.timeline { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:30px; flex-wrap:wrap; }
+.slot { width:80px; height:80px; background:rgba(255,255,255,0.15); border:2px solid #fff; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:text; position:relative; }
+.slot:not(:last-child)::after { content:"-"; position:absolute; right:-15px; top:50%; transform:translateY(-50%); font-size:24px; color:#fff; }
+
+button { cursor:pointer; }
+.slide button { background:#fff; color:#6e40aa; border:none; padding:20px 40px; border-radius:30px; font-size:20px; margin-top:20px; transition:0.3s;}
+.slide button:hover { transform:scale(1.1); background:#e0ccff; }
+#savePDF { margin-top:30px; background:#fff; color:#6e40aa; border:none; padding:15px 30px; border-radius:25px; font-size:18px; cursor:pointer; transition:0.3s;}
+#savePDF:hover { transform:scale(1.05); background:#e0ccff; }
+#loadingOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:9999; display:none; }
+.loader { border:8px solid #f3e8ff; border-top:8px solid #6e40aa; border-radius:50%; width:60px; height:60px; animation:spin 1s linear infinite; }
+@keyframes spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+</style>
+</head>
+<body>
+
+<div class="bg-icons">
+  <div class="float f1">💖</div>
+  <div class="float f2">✨</div>
+  <div class="float f3">💜</div>
+  <div class="float f4">🖥️</div>
+</div>
+
+<div id="loadingOverlay">
+  <div class="loader"></div>
+</div>
+
+<section id="intro">
+  <h1 contenteditable="true">Build Your Own Computer History</h1>
+  <p contenteditable="true">Click a button to go to a specific slide!</p>
+  <div>
+    <button onclick="openSlide('slide1')">Slide 1 - Instructions</button>
+    <button onclick="openSlide('slide2')">Slide 2 - Blank Timeline</button>
+    <button onclick="openSlide('slide3')">Slide 3 - Pre-filled Cards</button>
+    <button onclick="openSlide('slide4')">Slide 4 - Extra Cards</button>
+  </div>
+</section>
+
+<section id="slide1" class="slide">
+  <h2 contenteditable="true">Timeline Activity Instructions</h2>
+  <ol contenteditable="true">
+    <li>Review the given events and arrange them chronologically on the timeline.</li>
+    <li>Add at least two new events from your own research (include year, event name, and a short note).</li>
+    <li>Use the movable elements to place events on the timeline.</li>
+    <li>Decorate your timeline with icons or images (optional).</li>
+    <li>Save your work as PDF and upload it to your LMS.</li>
+  </ol>
+  <button onclick="backToIntro()">Back to Intro</button>
+</section>
+
+<section id="slide2" class="slide">
+  <h2 contenteditable="true">Blank Timeline Template</h2>
+  <div class="timeline">
+    <div class="slot" contenteditable="true">1</div>
+    <div class="slot" contenteditable="true">2</div>
+    <div class="slot" contenteditable="true">3</div>
+    <div class="slot" contenteditable="true">4</div>
+    <div class="slot" contenteditable="true">5</div>
+    <div class="slot" contenteditable="true">6</div>
+    <div class="slot" contenteditable="true">7</div>
+    <div class="slot" contenteditable="true">8</div>
+  </div>
+  <button onclick="backToIntro()">Back to Intro</button>
+</section>
+
+<section id="slide3" class="slide">
+  <h2 contenteditable="true">Pre-filled Event Cards</h2>
+  <div class="cards-container">
+    <div class="cards-row">
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>Abacus</strong><br><img src="https://thumbs.dreamstime.com/z/old-school-wooden-abacus-antique-abacus-wooden-frame-old-abacus-240604002.jpg"></div><div class="card-back">Ancient counting tool from China.</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>Napier's Bones</strong><br><img src="https://media.gettyimages.com/id/90774605/photo/united-kingdom-john-napier-discoverer-of-logarithms-created-the-popular-calculating-tool-known.jpg?s=612x612&w=0&k=20&c=D1HQHVc3Y5tMVmA9h_8pq0lb7hUKpTo5xCKWhb3045A="></div><div class="card-back">Multiplication tool created in 1614.</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>EDSAC</strong><br><img src="https://www.zdnet.com/a/img/resize/440124895e260d6e7d3c885c98ce9282a125d575/2016/11/02/b15cad1f-6cad-4202-8c48-c096ba0ab0c3/the-latest-stage-of-the-ongoing-edsac-reconstruction.jpg?auto=webp&fit=crop&height=675&width=1200"></div><div class="card-back">One of the earliest stored-program computers (1949).</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>UNIVAC</strong><br><img src="https://images.computerhistory.org/revonline/images/102667576p-03-01.jpg?w=600"></div><div class="card-back">First commercial computer (1951).</div></div></div>
+    </div>
+    <div class="cards-row">
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>IBM System/360</strong><br><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/IBM_System_360_model_30_profile.agr.jpg/800px-IBM_System_360_model_30_profile.agr.jpg"></div><div class="card-back">Mainframe computer series introduced in 1964.</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>Microchip</strong><br><img src="https://media.istockphoto.com/id/1468266144/photo/close-up-of-silicon-die-are-being-extracted-from-semiconductor-wafer-and-attached-to.jpg?s=612x612&w=0&k=20&c=pH_Dpln7azFx-lLTxpbd2SMkhbo7-bIWs8s_lAtaQiU="></div><div class="card-back">Silicon-based microchips revolutionized computing.</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>Internet</strong><br><img src="https://tariqaustralia.wordpress.com/wp-content/uploads/2013/04/14821565-internet-world-wide-web-concept-earth-globe-with-www-text-and-computer-hand-cursor-isolated-on-white.jpg?w=640"></div><div class="card-back">Global network connecting computers worldwide.</div></div></div>
+      <div class="card"><div class="card-inner"><div class="card-front"><strong>Smartphone</strong><br><img src="https://images.unsplash.com/photo-1598965402089-897ce52e8355?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8c21hcnRwaG9uZXxlbnwwfHwwfHx8MA%3D%3D"></div><div class="card-back">Modern portable computing device.</div></div></div>
+    </div>
+  </div>
+  <button onclick="backToIntro()">Back to Intro</button>
+</section>
+
+<section id="slide4" class="slide">
+  <h2 contenteditable="true">Your Event Cards</h2>
+  <div class="cards-container">
+    <div class="cards-row">
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+    </div>
+    <div class="cards-row">
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+      <div class="card" contenteditable="true"><div class="card-inner"><div class="card-front">Your Event Here</div><div class="card-back">Description here</div></div></div>
+    </div>
+  </div>
+  <button onclick="backToIntro()">Back to Intro</button>
+</section>
+
+<button id="savePDF">Save as PDF</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function showLoadingAndGo(callback){
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.style.display = 'flex';
+  setTimeout(()=>{ overlay.style.display = 'none'; callback(); },1500);
+}
+
+function openSlide(id){
+  showLoadingAndGo(()=>{
+    document.getElementById('intro').style.display='none';
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  });
+}
+
+function backToIntro(){
+  showLoadingAndGo(()=>{
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    document.getElementById('intro').style.display='flex';
+  });
+}
+
+document.getElementById('savePDF').addEventListener('click', () => {
+  html2pdf().set({ margin:0.5, filename:'My_Computer_History.pdf', html2canvas:{scale:2} }).from(document.body).save();
+});
+
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('click', ()=>{ card.classList.toggle('flipped'); });
+});
+</script>
+</body>
+</html>
